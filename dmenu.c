@@ -39,6 +39,7 @@ static char *embed;
 static int bh, mw, mh;
 static int maxwidth = 0, maxwidthperc = 0, center = 0;
 static int borderwidth = 0;
+static int vertindent = 1;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -173,7 +174,7 @@ drawmenu(void)
 	if (lines > 0) {
 		/* draw vertical list */
 		for (item = curr; item != next; item = item->right)
-			drawitem(item, x, y += bh, mw - x);
+			drawitem(item, (vertindent) ? x : 0, y += bh, mw - ((vertindent) ? x : 0));
 	} else if (matches) {
 		/* draw horizontal list */
 		x += inputw;
@@ -752,6 +753,8 @@ main(int argc, char *argv[])
 			fstrstr = cistrstr;
 		} else if (!strcmp(argv[i], "-c"))
 			center = 1;
+		else if (!strcmp(argv[i], "-ni"))
+			vertindent = 0;
 		else if (i + 1 == argc)
 			usage();
 		/* these options take one argument */
