@@ -38,6 +38,7 @@ static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
 static int maxwidth = 0, maxwidthperc = 0, center = 0;
+static int borderwidth = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -622,11 +623,13 @@ setup(void)
 	Window w, dw, *dws;
 	XWindowAttributes wa;
 	XClassHint ch = {"dmenu", "dmenu"};
+	XWindowChanges wc;
 #ifdef XINERAMA
 	XineramaScreenInfo *info;
 	Window pw;
 	int a, di, n, area = 0;
 #endif
+	Clr bclr;
 	/* init appearance */
 	for (j = 0; j < SchemeLast; j++)
 		scheme[j] = drw_scm_create(drw, colors[j], 2);
@@ -664,9 +667,10 @@ setup(void)
 				if (INTERSECT(x, y, 1, 1, info[i]) != 0)
 					break;
 
-		mw = (maxwidthperc) ? MIN(info[i].width * maxwidthperc / 100, info[i].width) : (maxwidth) ? MIN(maxwidth, info[i].width) : info[i].width;
-		x = info[i].x_org + ((center) ? (info[i].width - mw) / 2 : 0);
-		y = info[i].y_org + ((center) ? (info[i].height - mh) / 2 : topbar ? 0 : info[i].height - mh);
+		mw = info[i].width - borderwidth * 2;
+		mw = (maxwidthperc) ? MIN(info[i].width * maxwidthperc / 100 - borderwidth * 2, mw) : (maxwidth) ? MIN(maxwidth - borderwidth * 2, mw) : mw;
+		x = info[i].x_org + ((center) ? (info[i].width - mw) / 2 - borderwidth : 0);
+		y = info[i].y_org + ((center) ? (info[i].height - mh) / 2 - borderwidth : (topbar) ? 0 : info[i].height - mh - borderwidth);
 		XFree(info);
 	} else
 #endif
@@ -674,9 +678,10 @@ setup(void)
 		if (!XGetWindowAttributes(dpy, parentwin, &wa))
 			die("could not get embedding window attributes: 0x%lx",
 			    parentwin);
-		mw = (maxwidthperc) ? MIN(wa.width * maxwidthperc / 100, wa.width) : (maxwidth) ? MIN(maxwidth, wa.width) : wa.width;
-		x = (center) ? (wa.width - mw) / 2 : 0;
-		y = (center) ? (wa.height - mh) / 2 : (topbar) ? 0 : wa.height - mh;
+		mw = wa.width - borderwidth * 2;
+		mw = (maxwidthperc) ? MIN(wa.width * maxwidthperc / 100 - borderwidth * 2, mw) : (maxwidth) ? MIN(maxwidth - borderwidth * 2, mw) : mw;
+		x = (center) ? (wa.width - mw) / 2 - borderwidth : 0;
+		y = (center) ? (wa.height - mh) / 2 - borderwidth : (topbar) ? 0 : wa.height - mh - borderwidth;
 	}
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 	inputw = mw / 3; /* input width: ~33% of monitor width */
@@ -690,6 +695,12 @@ setup(void)
 	                    CopyFromParent, CopyFromParent, CopyFromParent,
 	                    CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
 	XSetClassHint(dpy, win, &ch);
+	if (borderwidth) {
+		drw_clr_create(drw, &bclr, bordercolor);
+		wc.border_width = borderwidth;
+		XConfigureWindow(dpy, win, CWBorderWidth, &wc);
+		XSetWindowBorder(dpy, win, bclr.pixel);
+	}
 
 
 	/* input methods */
@@ -753,6 +764,8 @@ main(int argc, char *argv[])
 			else
 				maxwidth = atoi(argv[i]);
 		}
+		else if (!strcmp(argv[i], "-bw"))  /* border width */
+			borderwidth = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-m"))
 			mon = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
@@ -767,6 +780,8 @@ main(int argc, char *argv[])
 			colors[SchemeSel][ColBg] = argv[++i];
 		else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
 			colors[SchemeSel][ColFg] = argv[++i];
+		else if (!strcmp(argv[i], "-bc"))  /* border color */
+			bordercolor = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
 		else
