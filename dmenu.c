@@ -37,6 +37,7 @@ struct item {
 static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
+static int maxwidth = 0, maxwidthperc = 0, center = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -663,9 +664,9 @@ setup(void)
 				if (INTERSECT(x, y, 1, 1, info[i]) != 0)
 					break;
 
-		x = info[i].x_org;
-		y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
-		mw = info[i].width;
+		mw = (maxwidthperc) ? MIN(info[i].width * maxwidthperc / 100, info[i].width) : (maxwidth) ? MIN(maxwidth, info[i].width) : info[i].width;
+		x = info[i].x_org + ((center) ? (info[i].width - mw) / 2 : 0);
+		y = info[i].y_org + ((center) ? (info[i].height - mh) / 2 : topbar ? 0 : info[i].height - mh);
 		XFree(info);
 	} else
 #endif
@@ -673,9 +674,9 @@ setup(void)
 		if (!XGetWindowAttributes(dpy, parentwin, &wa))
 			die("could not get embedding window attributes: 0x%lx",
 			    parentwin);
-		x = 0;
-		y = topbar ? 0 : wa.height - mh;
-		mw = wa.width;
+		mw = (maxwidthperc) ? MIN(wa.width * maxwidthperc / 100, wa.width) : (maxwidth) ? MIN(maxwidth, wa.width) : wa.width;
+		x = (center) ? (wa.width - mw) / 2 : 0;
+		y = (center) ? (wa.height - mh) / 2 : (topbar) ? 0 : wa.height - mh;
 	}
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 	inputw = mw / 3; /* input width: ~33% of monitor width */
@@ -738,11 +739,20 @@ main(int argc, char *argv[])
 		else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
 			fstrncmp = strncasecmp;
 			fstrstr = cistrstr;
-		} else if (i + 1 == argc)
+		} else if (!strcmp(argv[i], "-c"))
+			center = 1;
+		else if (i + 1 == argc)
 			usage();
 		/* these options take one argument */
 		else if (!strcmp(argv[i], "-l"))   /* number of lines in vertical list */
 			lines = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-mw")) {  /* maximum width */
+			++i;
+			if (argv[i][0] == '%')
+				maxwidthperc = atoi(&argv[i][1]);
+			else
+				maxwidth = atoi(argv[i]);
+		}
 		else if (!strcmp(argv[i], "-m"))
 			mon = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
