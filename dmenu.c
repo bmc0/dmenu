@@ -40,6 +40,7 @@ static int bh, mw, mh;
 static int maxwidth = 0, maxwidthperc = 0, center = 0;
 static int borderwidth = 0;
 static int vertindent = 1;
+static int margin = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -89,7 +90,7 @@ calcoffsets(void)
 	if (lines > 0)
 		n = lines * bh;
 	else
-		n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
+		n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">") + margin * 2);
 	/* calculate which items will begin the next page and previous page */
 	for (i = 0, next = curr; next; next = next->right)
 		if ((i += (lines > 0) ? bh : textw_clamp(next->text, n)) > n)
@@ -151,45 +152,45 @@ drawmenu(void)
 {
 	unsigned int curpos;
 	struct item *item;
-	int x = 0, y = 0, w;
+	int x = margin, y = margin, w;
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
 	if (prompt && *prompt) {
 		drw_setscheme(drw, scheme[SchemeSel]);
-		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
+		x = drw_text(drw, x, y, promptw, bh, lrpad / 2, prompt, 0);
 	}
 	/* draw input field */
-	w = (lines > 0 || !matches) ? mw - x : inputw;
+	w = (lines > 0 || !matches) ? mw - x - margin : inputw;
 	drw_setscheme(drw, scheme[SchemeNorm]);
-	drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
+	drw_text(drw, x, y, w, bh, lrpad / 2, text, 0);
 
 	curpos = TEXTW(text) - TEXTW(&text[cursor]);
 	if ((curpos += lrpad / 2 - 1) < w) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
+		drw_rect(drw, x + curpos, y + 2, 2, bh - 4, 1, 0);
 	}
 
 	if (lines > 0) {
 		/* draw vertical list */
 		for (item = curr; item != next; item = item->right)
-			drawitem(item, (vertindent) ? x : 0, y += bh, mw - ((vertindent) ? x : 0));
+			drawitem(item, (vertindent) ? x : x - promptw, y += bh, mw - ((vertindent) ? promptw : 0) - margin * 2);
 	} else if (matches) {
 		/* draw horizontal list */
 		x += inputw;
 		w = TEXTW("<");
 		if (curr->left) {
 			drw_setscheme(drw, scheme[SchemeNorm]);
-			drw_text(drw, x, 0, w, bh, lrpad / 2, "<", 0);
+			drw_text(drw, x, y, w, bh, lrpad / 2, "<", 0);
 		}
 		x += w;
 		for (item = curr; item != next; item = item->right)
-			x = drawitem(item, x, 0, textw_clamp(item->text, mw - x - TEXTW(">")));
+			x = drawitem(item, x, 0, textw_clamp(item->text, mw - x - margin - TEXTW(">")));
 		if (next) {
 			w = TEXTW(">");
 			drw_setscheme(drw, scheme[SchemeNorm]);
-			drw_text(drw, mw - w, 0, w, bh, lrpad / 2, ">", 0);
+			drw_text(drw, mw - w - margin, y, w, bh, lrpad / 2, ">", 0);
 		}
 	}
 	drw_map(drw, win, 0, 0, mw, mh);
@@ -641,7 +642,7 @@ setup(void)
 	/* calculate menu geometry */
 	bh = drw->fonts->h + 2;
 	lines = MAX(lines, 0);
-	mh = (lines + 1) * bh;
+	mh = (lines + 1) * bh + margin * 2;
 #ifdef XINERAMA
 	i = 0;
 	if (parentwin == root && (info = XineramaQueryScreens(dpy, &n))) {
@@ -684,8 +685,10 @@ setup(void)
 		x = (center) ? (wa.width - mw) / 2 - borderwidth : 0;
 		y = (center) ? (wa.height - mh) / 2 - borderwidth : (topbar) ? 0 : wa.height - mh - borderwidth;
 	}
+	if (mw - margin * 2 <= 0)
+		fprintf(stderr, "warning: margin too large: mw - margin * 2 is %d\n", mw - margin * 2);
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
-	inputw = mw / 3; /* input width: ~33% of monitor width */
+	inputw = (mw - margin * 2) / 3; /* input width: ~33% of monitor width */
 	match();
 
 	/* create menu window */
@@ -766,6 +769,9 @@ main(int argc, char *argv[])
 				maxwidthperc = atoi(&argv[i][1]);
 			else
 				maxwidth = atoi(argv[i]);
+		}
+		else if (!strcmp(argv[i], "-mg")) {
+			margin = atoi(argv[++i]);
 		}
 		else if (!strcmp(argv[i], "-bw"))  /* border width */
 			borderwidth = atoi(argv[++i]);
