@@ -26,7 +26,7 @@
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 /* enums */
-enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
+enum { SchemeNorm, SchemeSel, SchemeOut, SchemeSep, SchemeLast }; /* color schemes */
 
 struct item {
 	char *text;
@@ -41,6 +41,7 @@ static int maxwidth = 0, maxwidthperc = 0, center = 0;
 static int borderwidth = 0;
 static int vertindent = 1;
 static int margin = 0;
+static int seph = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -158,7 +159,7 @@ drawmenu(void)
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
 	if (prompt && *prompt) {
-		drw_setscheme(drw, scheme[SchemeSel]);
+		drw_setscheme(drw, scheme[(seph > 0) ? SchemeNorm : SchemeSel]);
 		x = drw_text(drw, x, y, promptw, bh, lrpad / 2, prompt, 0);
 	}
 	/* draw input field */
@@ -170,6 +171,11 @@ drawmenu(void)
 	if ((curpos += lrpad / 2 - 1) < w) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
 		drw_rect(drw, x + curpos, y + 2, 2, bh - 4, 1, 0);
+	}
+	if (seph > 0) {
+		drw_setscheme(drw, scheme[SchemeSep]);
+		drw_rect(drw, x - promptw, y + bh + 1, mw - margin * 2, seph, 1, 0);
+		y += 2 + seph;
 	}
 
 	if (lines > 0) {
@@ -642,7 +648,7 @@ setup(void)
 	/* calculate menu geometry */
 	bh = drw->fonts->h + 2;
 	lines = MAX(lines, 0);
-	mh = (lines + 1) * bh + margin * 2;
+	mh = (lines + 1) * bh + margin * 2 + ((seph > 0 && lines > 0) ? 2 + seph : 0);
 #ifdef XINERAMA
 	i = 0;
 	if (parentwin == root && (info = XineramaQueryScreens(dpy, &n))) {
@@ -775,6 +781,8 @@ main(int argc, char *argv[])
 		}
 		else if (!strcmp(argv[i], "-bw"))  /* border width */
 			borderwidth = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-s"))
+			seph = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-m"))
 			mon = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
@@ -791,6 +799,8 @@ main(int argc, char *argv[])
 			colors[SchemeSel][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-bc"))  /* border color */
 			bordercolor = argv[++i];
+		else if (!strcmp(argv[i], "-sc"))
+			colors[SchemeSep][ColFg] = argv[++i];
 		else if (!strcmp(argv[i], "-w"))   /* embedding window id */
 			embed = argv[++i];
 		else
