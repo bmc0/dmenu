@@ -26,7 +26,7 @@
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 /* enums */
-enum { SchemeNorm, SchemeSel, SchemeOut, SchemeSep, SchemeLast }; /* color schemes */
+enum { SchemeNorm, SchemeSel, SchemeOut, SchemePrompt, SchemeSep, SchemeLast }; /* color schemes */
 
 struct item {
 	char *text;
@@ -42,6 +42,7 @@ static int borderwidth = 0;
 static int vertindent = 1;
 static int margin = 0;
 static int seph = 0;
+static int use_schemeprompt = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -159,7 +160,7 @@ drawmenu(void)
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
 	if (prompt && *prompt) {
-		drw_setscheme(drw, scheme[(seph > 0) ? SchemeNorm : SchemeSel]);
+		drw_setscheme(drw, scheme[(use_schemeprompt) ? SchemePrompt : (seph > 0) ? SchemeNorm : SchemeSel]);
 		x = drw_text(drw, x, y, promptw, bh, lrpad / 2, prompt, 0);
 	}
 	/* draw input field */
@@ -797,6 +798,14 @@ main(int argc, char *argv[])
 			colors[SchemeSel][ColBg] = argv[++i];
 		else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
 			colors[SchemeSel][ColFg] = argv[++i];
+		else if (!strcmp(argv[i], "-pb")) {
+			colors[SchemePrompt][ColBg] = argv[++i];
+			use_schemeprompt = 1;
+		}
+		else if (!strcmp(argv[i], "-pf")) {
+			colors[SchemePrompt][ColFg] = argv[++i];
+			use_schemeprompt = 1;
+		}
 		else if (!strcmp(argv[i], "-bc"))  /* border color */
 			bordercolor = argv[++i];
 		else if (!strcmp(argv[i], "-sc"))
